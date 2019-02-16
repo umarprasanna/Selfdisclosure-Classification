@@ -1,33 +1,9 @@
+from gensim.models import Word2Vec
 import tensorflow as tf
 import numpy as np
-
-# Parameters
-# ==================================================
-
-# Data loading params
-tf.app.flags.DEFINE_string('f', '', 'kernel')
-tf.flags.DEFINE_float("dev_sample_percentage", .1, "Percentage of the training data to use for validation")
-
-# Model Hyperparameters
-tf.flags.DEFINE_integer("embedding_dim", 300, "Dimensionality of character embedding (default: 300)")
-tf.flags.DEFINE_string("filter_sizes", "3,4,5", "Comma-separated filter sizes (default: '3,4,5')")
-tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
-tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
-tf.flags.DEFINE_float("l2_reg_lambda", 0.0, "L2 regularization lambda (default: 0.0)")
-
-# Training parameters
-tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
-tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
-tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
-tf.flags.DEFINE_integer("num_checkpoints", 5, "Number of checkpoints to store (default: 5)")
-
-# Misc Parameters
-tf.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
-tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
-
-FLAGS = tf.flags.FLAGS
-
+import json
+from tensorflow.contrib import learn
+from tensorflow.contrib import layers
 
 class TextCNN(object):
     """
@@ -66,7 +42,7 @@ class TextCNN(object):
             #                               initializer=tf.constant_initializer(embedding_mat),trainable=False)
             self.W = tf.Variable(tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),name="W")
             self.embedded_chars = tf.nn.embedding_lookup(self.W, self.input_x)
-            #self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
+            self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
 
         # Create a convolution + maxpool layer for each filter size
         pooled_outputs = []
@@ -107,7 +83,7 @@ class TextCNN(object):
             W = tf.get_variable(
                 "W",
                 shape=[num_filters_total, num_classes],
-                initializer=tf.contrib.layers.xavier_initializer())
+                initializer= tf.contrib.layers.xavier_initializer())
             b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
             l2_loss += tf.nn.l2_loss(W)
             l2_loss += tf.nn.l2_loss(b)

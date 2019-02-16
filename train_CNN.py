@@ -3,8 +3,8 @@ import numpy as np
 import os
 import time
 import datetime
-import data_helpers
-from text_cnn import TextCNN
+from CNN import TextCNN
+import get_data
 from tensorflow.contrib import learn
 
 # Parameters
@@ -17,15 +17,15 @@ tf.flags.DEFINE_float("dev_sample_percentage", .1, "Percentage of the training d
 # Model Hyperparameters
 tf.flags.DEFINE_integer("embedding_dim", 300, "Dimensionality of character embedding (default: 300)")
 tf.flags.DEFINE_string("filter_sizes", "3,4,5", "Comma-separated filter sizes (default: '3,4,5')")
-tf.flags.DEFINE_integer("num_filters", 128, "Number of filters per filter size (default: 128)")
+tf.flags.DEFINE_integer("num_filters", 10, "Number of filters per filter size (default: 10)")
 tf.flags.DEFINE_float("dropout_keep_prob", 0.5, "Dropout keep probability (default: 0.5)")
 tf.flags.DEFINE_float("l2_reg_lambda", 0.0, "L2 regularization lambda (default: 0.0)")
 
 # Training parameters
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size (default: 64)")
-tf.flags.DEFINE_integer("num_epochs", 200, "Number of training epochs (default: 200)")
-tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
-tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
+tf.flags.DEFINE_integer("num_epochs", 10, "Number of training epochs (default: 200)")
+tf.flags.DEFINE_integer("evaluate_every", 2, "Evaluate model on dev set after this many steps (default: 100)")
+tf.flags.DEFINE_integer("checkpoint_every", 2, "Save model after this many steps (default: 100)")
 tf.flags.DEFINE_integer("num_checkpoints", 5, "Number of checkpoints to store (default: 5)")
 
 # Misc Parameters
@@ -35,7 +35,7 @@ tf.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on 
 FLAGS = tf.flags.FLAGS
 
 
-def train(x_train, y_train, vocab_processor, x_dev, y_dev):
+def train(x_train, y_train, vocabulary, x_dev, y_dev):
     # Training
     # ==================================================
 
@@ -47,8 +47,8 @@ def train(x_train, y_train, vocab_processor, x_dev, y_dev):
         with sess.as_default():
             cnn = TextCNN(
                 sequence_length=x_train.shape[1],
+                model_path = "/Users/pxu3/Desktop/Spring 2019/Research/Code/updated_pretrained_googlewv.bin",
                 num_classes=y_train.shape[1],
-                vocab_size=len(vocab_processor.vocabulary_),
                 embedding_size=FLAGS.embedding_dim,
                 filter_sizes=list(map(int, FLAGS.filter_sizes.split(","))),
                 num_filters=FLAGS.num_filters,
@@ -97,7 +97,9 @@ def train(x_train, y_train, vocab_processor, x_dev, y_dev):
             saver = tf.train.Saver(tf.global_variables(), max_to_keep=FLAGS.num_checkpoints)
 
             # Write vocabulary
-            vocab_processor.save(os.path.join(out_dir, "vocab"))
+            with open('vocab.json', 'w') as fp:
+                json.dump(vocabulary, fp, sort_keys=True, indent=4)
+            
 
             # Initialize all variables
             sess.run(tf.global_variables_initializer())
@@ -136,7 +138,7 @@ def train(x_train, y_train, vocab_processor, x_dev, y_dev):
                     writer.add_summary(summaries, step)
 
             # Generate batches
-            batches = data_helpers.batch_iter(
+            batches = get_data.batch_iter(
                 list(zip(x_train, y_train)), FLAGS.batch_size, FLAGS.num_epochs)
             # Training loop. For each batch...
             for batch in batches:
@@ -152,8 +154,8 @@ def train(x_train, y_train, vocab_processor, x_dev, y_dev):
                     print("Saved model checkpoint to {}\n".format(path))
 
 def main(argv=None):
-    x_train, y_train, vocab_processor, x_dev, y_dev = preprocess()
-    train(x_train, y_train, vocab_processor, x_dev, y_dev)
+    x_train, y_train, x_test, y_test, vocabulary, vocabulary_inv = get_data.load_trainable_dataset('/Users/pxu3/Desktop/Spring 2019/Research/Data/','Binarized_Dataset.txt')
+    train(x_train, y_train, vocabulary, x_test, y_test)
 
 if __name__ == '__main__':
     tf.app.run()
